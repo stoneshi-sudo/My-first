@@ -18,24 +18,45 @@ class CryptoConverter {
 
     // 设置事件监听
     setupEventListeners() {
+        // 获取DOM元素
+        const fromAmount = document.getElementById('fromAmount');
+        const fromCurrency = document.getElementById('fromCurrency');
+        const toCurrency = document.getElementById('toCurrency');
+        const swapBtn = document.getElementById('swapBtn');
+
+        // 检查所有元素是否存在
+        if (!fromAmount || !fromCurrency || !toCurrency || !swapBtn) {
+            console.error('错误：必需的DOM元素未找到！');
+            console.error({
+                fromAmount: !!fromAmount,
+                fromCurrency: !!fromCurrency,
+                toCurrency: !!toCurrency,
+                swapBtn: !!swapBtn
+            });
+            alert('页面加载错误，请尝试强制刷新页面（Ctrl+Shift+R 或 Cmd+Shift+R）');
+            return;
+        }
+
         // 自动转换：输入时实时计算
-        document.getElementById('fromAmount').addEventListener('input', () => this.convert());
+        fromAmount.addEventListener('input', () => this.convert());
 
         // 切换货币时自动更新
-        document.getElementById('fromCurrency').addEventListener('change', () => this.convert());
-        document.getElementById('toCurrency').addEventListener('change', () => this.convert());
+        fromCurrency.addEventListener('change', () => this.convert());
+        toCurrency.addEventListener('change', () => this.convert());
 
         // 交换按钮
-        document.getElementById('swapBtn').addEventListener('click', () => this.swap());
+        swapBtn.addEventListener('click', () => this.swap());
 
         // 按回车键自动转换并失去焦点
-        document.getElementById('fromAmount').addEventListener('keypress', (e) => {
+        fromAmount.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' || e.keyCode === 13) {
                 e.preventDefault();
                 this.convert();
                 e.target.blur();
             }
         });
+
+        console.log('✅ 事件监听器设置完成');
     }
 
     // 加载所有数据
