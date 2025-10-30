@@ -162,6 +162,7 @@ header h1 {
     border-radius: 12px;
     padding: 16px;
     margin: 20px 0;
+    margin-bottom: 0;
     text-align: center;
     color: var(--text-secondary);
     min-height: 60px;
@@ -187,35 +188,6 @@ header h1 {
     color: var(--primary-color);
     font-weight: 700;
     font-size: 1.25rem;
-}
-
-.convert-btn {
-    width: 100%;
-    background: linear-gradient(135deg, var(--primary-color) 0%, #fcd535 100%);
-    color: var(--secondary-color);
-    border: none;
-    padding: 16px;
-    border-radius: 12px;
-    font-size: 1.125rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.3s;
-    box-shadow: 0 4px 12px rgba(240, 185, 11, 0.3);
-}
-
-.convert-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(240, 185, 11, 0.4);
-}
-
-.convert-btn:active {
-    transform: translateY(0);
-}
-
-.convert-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
 }
 
 .info-section {

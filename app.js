@@ -18,18 +18,21 @@ class CryptoConverter {
 
     // 设置事件监听
     setupEventListeners() {
-        document.getElementById('convertBtn').addEventListener('click', () => this.convert());
+        // 自动转换：输入时实时计算
         document.getElementById('fromAmount').addEventListener('input', () => this.convert());
+
+        // 切换货币时自动更新
         document.getElementById('fromCurrency').addEventListener('change', () => this.convert());
         document.getElementById('toCurrency').addEventListener('change', () => this.convert());
+
+        // 交换按钮
         document.getElementById('swapBtn').addEventListener('click', () => this.swap());
 
-        // 按回车键自动转换
+        // 按回车键自动转换并失去焦点
         document.getElementById('fromAmount').addEventListener('keypress', (e) => {
             if (e.key === 'Enter' || e.keyCode === 13) {
                 e.preventDefault();
                 this.convert();
-                // 可选：转换后移除输入框焦点，提供视觉反馈
                 e.target.blur();
             }
         });
