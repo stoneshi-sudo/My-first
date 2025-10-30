@@ -23,6 +23,16 @@ class CryptoConverter {
         document.getElementById('fromCurrency').addEventListener('change', () => this.convert());
         document.getElementById('toCurrency').addEventListener('change', () => this.convert());
         document.getElementById('swapBtn').addEventListener('click', () => this.swap());
+
+        // 按回车键自动转换
+        document.getElementById('fromAmount').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' || e.keyCode === 13) {
+                e.preventDefault();
+                this.convert();
+                // 可选：转换后移除输入框焦点，提供视觉反馈
+                e.target.blur();
+            }
+        });
     }
 
     // 加载所有数据
