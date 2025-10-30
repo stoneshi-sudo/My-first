@@ -73,6 +73,15 @@ class CryptoConverter {
                 };
             });
 
+            // 创建价格映射（所有USDT交易对）
+            const priceMap = {};
+            data.forEach(item => {
+                if (item.symbol.endsWith('USDT')) {
+                    const symbol = item.symbol.replace('USDT', '');
+                    priceMap[symbol] = parseFloat(item.price);
+                }
+            });
+
             // 筛选USDT交易对
             const usdtPairs = data.filter(item => item.symbol.endsWith('USDT'));
 
@@ -86,6 +95,18 @@ class CryptoConverter {
             this.cryptoPrices = {};
             this.top50Cryptos = [];
 
+            // 确保热门币种始终被加载
+            const mustHaveCoins = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE'];
+            mustHaveCoins.forEach(coin => {
+                if (priceMap[coin]) {
+                    this.cryptoPrices[coin] = priceMap[coin];
+                    console.log(`已加载热门币种: ${coin} = $${priceMap[coin]}`);
+                }
+            });
+
+            // 添加USDT本身
+            this.cryptoPrices['USDT'] = 1;
+
             sortedPairs.forEach(item => {
                 const symbol = item.symbol.replace('USDT', '');
                 const price = parseFloat(item.price);
@@ -97,8 +118,7 @@ class CryptoConverter {
                 });
             });
 
-            // 添加USDT本身
-            this.cryptoPrices['USDT'] = 1;
+            console.log(`成功加载 ${Object.keys(this.cryptoPrices).length} 种加密货币价格`);
 
             // 更新下拉菜单
             this.updateCryptoDropdowns();
