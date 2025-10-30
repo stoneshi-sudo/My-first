@@ -255,11 +255,20 @@ class CryptoConverter {
         if (this.isCrypto(currency)) {
             // 加密货币，直接返回USDT价格
             const price = this.cryptoPrices[currency];
-            console.log(`${currency} (加密) 价格: $${price}, 数量: ${amount}, USD总额: $${price * amount}`);
-            return price * amount;
+            if (!price || isNaN(price)) {
+                console.error(`${currency} (加密) 价格无效或未加载: ${price}`);
+                return 0;
+            }
+            const usdTotal = price * amount;
+            console.log(`${currency} (加密) 价格: $${price}, 数量: ${amount}, USD总额: $${usdTotal}`);
+            return usdTotal;
         } else if (this.isFiat(currency)) {
             // 法币，转换为USD
             const rate = this.fiatRates[currency];
+            if (!rate || isNaN(rate)) {
+                console.error(`${currency} (法币) 汇率无效或未加载: ${rate}`);
+                return 0;
+            }
             const usdAmount = amount / rate;
             console.log(`${currency} (法币) 汇率: ${rate}, 数量: ${amount}, USD总额: $${usdAmount}`);
             return usdAmount;
@@ -273,12 +282,20 @@ class CryptoConverter {
         if (this.isCrypto(targetCurrency)) {
             // 转换为加密货币
             const price = this.cryptoPrices[targetCurrency];
+            if (!price || isNaN(price)) {
+                console.error(`${targetCurrency} (加密) 价格无效或未加载: ${price}`);
+                return 0;
+            }
             const result = usdAmount / price;
             console.log(`USD $${usdAmount} -> ${targetCurrency} (加密): ${result} (价格: $${price})`);
             return result;
         } else if (this.isFiat(targetCurrency)) {
             // 转换为法币
             const rate = this.fiatRates[targetCurrency];
+            if (!rate || isNaN(rate)) {
+                console.error(`${targetCurrency} (法币) 汇率无效或未加载: ${rate}`);
+                return 0;
+            }
             const result = usdAmount * rate;
             console.log(`USD $${usdAmount} -> ${targetCurrency} (法币): ${result} (汇率: ${rate})`);
             return result;
@@ -289,15 +306,12 @@ class CryptoConverter {
 
     // 执行转换
     convert() {
-        const fromAmount = parseFloat(document.getElementById('fromAmount').value) || 0;
+        const fromAmountInput = document.getElementById('fromAmount').value;
+        const fromAmount = parseFloat(fromAmountInput);
         const fromCurrency = document.getElementById('fromCurrency').value;
         const toCurrency = document.getElementById('toCurrency').value;
 
-        if (fromAmount === 0) {
-            document.getElementById('toAmount').value = '0';
-            this.updateRateInfo(fromCurrency, toCurrency, 0);
-            return;
-        }
+        console.log(`转换请求: ${fromAmount} ${fromCurrency} -> ${toCurrency}`);
 
         // 检查数据是否已加载
         if (Object.keys(this.cryptoPrices).length === 0 || Object.keys(this.fiatRates).length === 0) {
@@ -305,11 +319,20 @@ class CryptoConverter {
             return;
         }
 
+        // 如果输入为空或0，显示0并计算汇率
+        if (!fromAmountInput || isNaN(fromAmount) || fromAmount === 0) {
+            document.getElementById('toAmount').value = '0';
+            // 仍然计算并显示1单位的汇率
+            const rate1 = this.calculateRate(fromCurrency, toCurrency);
+            this.updateRateInfo(fromCurrency, toCurrency, rate1);
+            return;
+        }
+
         try {
             // 第一步：转换为USD
             const usdAmount = this.getPriceInUSD(fromCurrency, fromAmount);
 
-            if (usdAmount === 0) {
+            if (usdAmount === 0 || isNaN(usdAmount)) {
                 console.error('无法获取源货币价格:', fromCurrency);
                 this.showError(`无法获取 ${fromCurrency} 的价格，请稍后重试`);
                 return;
@@ -318,7 +341,7 @@ class CryptoConverter {
             // 第二步：从USD转换为目标货币
             const result = this.convertFromUSD(usdAmount, toCurrency);
 
-            if (result === 0) {
+            if (result === 0 || isNaN(result)) {
                 console.error('无法转换到目标货币:', toCurrency);
                 this.showError(`无法转换到 ${toCurrency}，请稍后重试`);
                 return;
@@ -335,6 +358,13 @@ class CryptoConverter {
             console.error('转换失败:', error);
             this.showError('转换失败，请检查货币是否支持');
         }
+    }
+
+    // 计算1单位的汇率
+    calculateRate(fromCurrency, toCurrency) {
+        const usd = this.getPriceInUSD(fromCurrency, 1);
+        if (usd === 0) return 0;
+        return this.convertFromUSD(usd, toCurrency);
     }
 
     // 更新汇率信息显示
