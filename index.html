@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>加密货币汇率计算器</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💱 加密货币汇率计算器</h1>
+            <p class="subtitle">实时汇率 · 币安数据源</p>
+        </header>
+
+        <div class="calculator-card">
+            <div class="currency-section">
+                <label for="fromAmount">转换金额</label>
+                <div class="input-group">
+                    <input type="number" id="fromAmount" placeholder="0.00" value="1" min="0" step="any">
+                    <select id="fromCurrency">
+                        <optgroup label="热门加密货币">
+                            <option value="BTC" selected>BTC - Bitcoin</option>
+                            <option value="ETH">ETH - Ethereum</option>
+                            <option value="USDT">USDT - Tether</option>
+                            <option value="BNB">BNB - Binance Coin</option>
+                            <option value="SOL">SOL - Solana</option>
+                        </optgroup>
+                        <optgroup label="其他加密货币" id="cryptoGroup">
+                        </optgroup>
+                        <optgroup label="法定货币" id="fiatGroup">
+                            <option value="USD">USD - 美元</option>
+                            <option value="EUR">EUR - 欧元</option>
+                            <option value="CNY">CNY - 人民币</option>
+                            <option value="JPY">JPY - 日元</option>
+                            <option value="GBP">GBP - 英镑</option>
+                            <option value="KRW">KRW - 韩元</option>
+                            <option value="AUD">AUD - 澳元</option>
+                            <option value="CAD">CAD - 加元</option>
+                            <option value="CHF">CHF - 瑞士法郎</option>
+                            <option value="HKD">HKD - 港币</option>
+                            <option value="SGD">SGD - 新加坡元</option>
+                            <option value="RUB">RUB - 卢布</option>
+                            <option value="INR">INR - 印度卢比</option>
+                            <option value="BRL">BRL - 巴西雷亚尔</option>
+                            <option value="ZAR">ZAR - 南非兰特</option>
+                            <option value="TRY">TRY - 土耳其里拉</option>
+                            <option value="MXN">MXN - 墨西哥比索</option>
+                            <option value="IDR">IDR - 印尼盾</option>
+                            <option value="THB">THB - 泰铢</option>
+                            <option value="VND">VND - 越南盾</option>
+                        </optgroup>
+                    </select>
+                </div>
+            </div>
+
+            <div class="swap-button" id="swapBtn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <polyline points="19 12 12 19 5 12"></polyline>
+                </svg>
+            </div>
+
+            <div class="currency-section">
+                <label for="toAmount">兑换结果</label>
+                <div class="input-group">
+                    <input type="number" id="toAmount" placeholder="0.00" readonly>
+                    <select id="toCurrency">
+                        <optgroup label="法定货币" id="fiatGroup2">
+                            <option value="USD" selected>USD - 美元</option>
+                            <option value="EUR">EUR - 欧元</option>
+                            <option value="CNY">CNY - 人民币</option>
+                            <option value="JPY">JPY - 日元</option>
+                            <option value="GBP">GBP - 英镑</option>
+                            <option value="KRW">KRW - 韩元</option>
+                            <option value="AUD">AUD - 澳元</option>
+                            <option value="CAD">CAD - 加元</option>
+                            <option value="CHF">CHF - 瑞士法郎</option>
+                            <option value="HKD">HKD - 港币</option>
+                            <option value="SGD">SGD - 新加坡元</option>
+                            <option value="RUB">RUB - 卢布</option>
+                            <option value="INR">INR - 印度卢比</option>
+                            <option value="BRL">BRL - 巴西雷亚尔</option>
+                            <option value="ZAR">ZAR - 南非兰特</option>
+                            <option value="TRY">TRY - 土耳其里拉</option>
+                            <option value="MXN">MXN - 墨西哥比索</option>
+                            <option value="IDR">IDR - 印尼盾</option>
+                            <option value="THB">THB - 泰铢</option>
+                            <option value="VND">VND - 越南盾</option>
+                        </optgroup>
+                        <optgroup label="热门加密货币">
+                            <option value="BTC">BTC - Bitcoin</option>
+                            <option value="ETH">ETH - Ethereum</option>
+                            <option value="USDT">USDT - Tether</option>
+                            <option value="BNB">BNB - Binance Coin</option>
+                            <option value="SOL">SOL - Solana</option>
+                        </optgroup>
+                        <optgroup label="其他加密货币" id="cryptoGroup2">
+                        </optgroup>
+                    </select>
+                </div>
+            </div>
+
+            <div class="rate-info" id="rateInfo">
+                <div class="loading">加载汇率中...</div>
+            </div>
+
+            <button class="convert-btn" id="convertBtn">
+                立即转换
+            </button>
+        </div>
+
+        <div class="info-section">
+            <div class="info-card">
+                <h3>📊 市场信息</h3>
+                <div id="marketInfo" class="market-info">
+                    <p>正在加载市场数据...</p>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>数据来源：币安 (Binance) API | 实时更新</p>
+            <p class="last-update">最后更新: <span id="lastUpdate">-</span></p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
