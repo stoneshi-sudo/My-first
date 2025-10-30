@@ -51,74 +51,104 @@ class CryptoConverter {
         }
     }
 
-    // 从币安API加载加密货币价格
+    // 从CoinGecko API加载加密货币价格（支持CORS）
     async loadCryptoPrices() {
         try {
-            // 获取所有交易对价格（以USDT计价）
-            const response = await fetch('https://api.binance.com/api/v3/ticker/price');
+            // 使用CoinGecko API（免费且支持CORS）
+            // 获取前100个加密货币按市值排序
+            const response = await fetch(
+                'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false&price_change_percentage=24h'
+            );
+
+            if (!response.ok) {
+                throw new Error(`API请求失败: ${response.status}`);
+            }
+
             const data = await response.json();
 
-            // 获取24小时价格变化
-            const statsResponse = await fetch('https://api.binance.com/api/v3/ticker/24hr');
-            const statsData = await statsResponse.json();
-
-            // 创建统计数据映射
-            const statsMap = {};
-            statsData.forEach(item => {
-                statsMap[item.symbol] = {
-                    priceChange: parseFloat(item.priceChange),
-                    priceChangePercent: parseFloat(item.priceChangePercent),
-                    volume: parseFloat(item.volume),
-                    quoteVolume: parseFloat(item.quoteVolume)
-                };
-            });
-
-            // 创建价格映射（所有USDT交易对）
-            const priceMap = {};
-            data.forEach(item => {
-                if (item.symbol.endsWith('USDT')) {
-                    const symbol = item.symbol.replace('USDT', '');
-                    priceMap[symbol] = parseFloat(item.price);
-                }
-            });
-
-            // 筛选USDT交易对
-            const usdtPairs = data.filter(item => item.symbol.endsWith('USDT'));
-
-            // 按交易量排序获取Top 50
-            const sortedPairs = usdtPairs
-                .filter(item => statsMap[item.symbol] && statsMap[item.symbol].quoteVolume > 0)
-                .sort((a, b) => (statsMap[b.symbol]?.quoteVolume || 0) - (statsMap[a.symbol]?.quoteVolume || 0))
-                .slice(0, 50);
+            console.log(`从CoinGecko获取到 ${data.length} 种加密货币`);
 
             // 保存价格数据
             this.cryptoPrices = {};
             this.top50Cryptos = [];
 
-            // 确保热门币种始终被加载
-            const mustHaveCoins = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE'];
-            mustHaveCoins.forEach(coin => {
-                if (priceMap[coin]) {
-                    this.cryptoPrices[coin] = priceMap[coin];
-                    console.log(`已加载热门币种: ${coin} = $${priceMap[coin]}`);
-                }
-            });
+            // 创建符号映射表（CoinGecko使用全小写名称）
+            const symbolMap = {
+                'bitcoin': 'BTC',
+                'ethereum': 'ETH',
+                'tether': 'USDT',
+                'binancecoin': 'BNB',
+                'solana': 'SOL',
+                'ripple': 'XRP',
+                'cardano': 'ADA',
+                'dogecoin': 'DOGE',
+                'usd-coin': 'USDC',
+                'staked-ether': 'STETH',
+                'avalanche-2': 'AVAX',
+                'tron': 'TRX',
+                'polkadot': 'DOT',
+                'chainlink': 'LINK',
+                'polygon': 'MATIC',
+                'shiba-inu': 'SHIB',
+                'litecoin': 'LTC',
+                'bitcoin-cash': 'BCH',
+                'uniswap': 'UNI',
+                'stellar': 'XLM',
+                'cosmos': 'ATOM',
+                'ethereum-classic': 'ETC',
+                'monero': 'XMR',
+                'filecoin': 'FIL',
+                'hedera-hashgraph': 'HBAR',
+                'aptos': 'APT',
+                'optimism': 'OP',
+                'arbitrum': 'ARB',
+                'near': 'NEAR',
+                'vechain': 'VET',
+                'algorand': 'ALGO',
+                'internet-computer': 'ICP',
+                'quant': 'QNT',
+                'aave': 'AAVE',
+                'the-graph': 'GRT',
+                'eos': 'EOS',
+                'axie-infinity': 'AXS',
+                'tezos': 'XTZ',
+                'sandbox': 'SAND',
+                'theta-token': 'THETA',
+                'elrond-erd-2': 'EGLD',
+                'flow': 'FLOW',
+                'decentraland': 'MANA',
+                'fantom': 'FTM',
+                'zcash': 'ZEC',
+                'maker': 'MKR',
+                'curve-dao-token': 'CRV'
+            };
 
-            // 添加USDT本身
-            this.cryptoPrices['USDT'] = 1;
+            // 处理前50个
+            const top50 = data.slice(0, 50);
 
-            sortedPairs.forEach(item => {
-                const symbol = item.symbol.replace('USDT', '');
-                const price = parseFloat(item.price);
+            top50.forEach(coin => {
+                const symbol = symbolMap[coin.id] || coin.symbol.toUpperCase();
+                const price = coin.current_price;
+
                 this.cryptoPrices[symbol] = price;
                 this.top50Cryptos.push({
                     symbol: symbol,
                     price: price,
-                    stats: statsMap[item.symbol]
+                    stats: {
+                        priceChange: coin.price_change_24h || 0,
+                        priceChangePercent: coin.price_change_percentage_24h || 0,
+                        volume: coin.total_volume || 0,
+                        marketCap: coin.market_cap || 0
+                    }
                 });
+
+                console.log(`${symbol}: $${price}`);
             });
 
-            console.log(`成功加载 ${Object.keys(this.cryptoPrices).length} 种加密货币价格`);
+            // 确保USDT = 1
+            this.cryptoPrices['USDT'] = 1;
+
+            console.log(`✅ 成功加载 ${Object.keys(this.cryptoPrices).length} 种加密货币价格`);
 
             // 更新下拉菜单
             this.updateCryptoDropdowns();
@@ -127,9 +157,46 @@ class CryptoConverter {
             this.updateMarketInfo();
 
         } catch (error) {
-            console.error('加载加密货币价格失败:', error);
-            throw error;
+            console.error('❌ 加载加密货币价格失败:', error);
+            // 使用备用数据
+            this.loadFallbackCryptoPrices();
         }
+    }
+
+    // 备用加密货币价格（当API失败时使用）
+    loadFallbackCryptoPrices() {
+        console.log('⚠️ 使用备用加密货币价格数据');
+        this.cryptoPrices = {
+            'BTC': 98000,
+            'ETH': 3500,
+            'USDT': 1,
+            'BNB': 650,
+            'SOL': 210,
+            'XRP': 0.62,
+            'ADA': 0.58,
+            'DOGE': 0.38,
+            'AVAX': 42,
+            'DOT': 7.2,
+            'MATIC': 0.89,
+            'LINK': 19,
+            'UNI': 12,
+            'LTC': 105,
+            'BCH': 480
+        };
+
+        this.top50Cryptos = Object.entries(this.cryptoPrices).map(([symbol, price]) => ({
+            symbol,
+            price,
+            stats: {
+                priceChange: 0,
+                priceChangePercent: 0,
+                volume: 0,
+                marketCap: 0
+            }
+        }));
+
+        this.updateCryptoDropdowns();
+        this.updateMarketInfo();
     }
 
     // 加载法币汇率
