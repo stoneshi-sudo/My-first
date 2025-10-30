@@ -43,6 +43,8 @@ class CryptoConverter {
                 this.loadFiatRates()
             ]);
             this.updateLastUpdateTime();
+            // 数据加载完成后，自动执行一次转换
+            this.convert();
         } catch (error) {
             console.error('加载数据失败:', error);
             this.showError('数据加载失败，请刷新页面重试');
@@ -232,11 +234,17 @@ class CryptoConverter {
     getPriceInUSD(currency, amount = 1) {
         if (this.isCrypto(currency)) {
             // 加密货币，直接返回USDT价格
-            return this.cryptoPrices[currency] * amount;
+            const price = this.cryptoPrices[currency];
+            console.log(`${currency} (加密) 价格: $${price}, 数量: ${amount}, USD总额: $${price * amount}`);
+            return price * amount;
         } else if (this.isFiat(currency)) {
             // 法币，转换为USD
-            return amount / this.fiatRates[currency];
+            const rate = this.fiatRates[currency];
+            const usdAmount = amount / rate;
+            console.log(`${currency} (法币) 汇率: ${rate}, 数量: ${amount}, USD总额: $${usdAmount}`);
+            return usdAmount;
         }
+        console.log(`未知货币: ${currency}`);
         return 0;
     }
 
@@ -244,11 +252,18 @@ class CryptoConverter {
     convertFromUSD(usdAmount, targetCurrency) {
         if (this.isCrypto(targetCurrency)) {
             // 转换为加密货币
-            return usdAmount / this.cryptoPrices[targetCurrency];
+            const price = this.cryptoPrices[targetCurrency];
+            const result = usdAmount / price;
+            console.log(`USD $${usdAmount} -> ${targetCurrency} (加密): ${result} (价格: $${price})`);
+            return result;
         } else if (this.isFiat(targetCurrency)) {
             // 转换为法币
-            return usdAmount * this.fiatRates[targetCurrency];
+            const rate = this.fiatRates[targetCurrency];
+            const result = usdAmount * rate;
+            console.log(`USD $${usdAmount} -> ${targetCurrency} (法币): ${result} (汇率: ${rate})`);
+            return result;
         }
+        console.log(`未知目标货币: ${targetCurrency}`);
         return 0;
     }
 
@@ -264,12 +279,30 @@ class CryptoConverter {
             return;
         }
 
+        // 检查数据是否已加载
+        if (Object.keys(this.cryptoPrices).length === 0 || Object.keys(this.fiatRates).length === 0) {
+            console.log('数据还在加载中...');
+            return;
+        }
+
         try {
             // 第一步：转换为USD
             const usdAmount = this.getPriceInUSD(fromCurrency, fromAmount);
 
+            if (usdAmount === 0) {
+                console.error('无法获取源货币价格:', fromCurrency);
+                this.showError(`无法获取 ${fromCurrency} 的价格，请稍后重试`);
+                return;
+            }
+
             // 第二步：从USD转换为目标货币
             const result = this.convertFromUSD(usdAmount, toCurrency);
+
+            if (result === 0) {
+                console.error('无法转换到目标货币:', toCurrency);
+                this.showError(`无法转换到 ${toCurrency}，请稍后重试`);
+                return;
+            }
 
             // 显示结果
             document.getElementById('toAmount').value = this.formatPrice(result);
