@@ -1,411 +1,726 @@
-// 币安汇率计算器
-class CryptoConverter {
+// 三年级字词学习应用
+class VocabularyApp {
     constructor() {
-        this.cryptoPrices = {};
-        this.fiatRates = {};
-        this.top50Cryptos = [];
+        this.words = [];
+        this.filteredWords = [];
+        this.favorites = new Set(JSON.parse(localStorage.getItem('favorites') || '[]'));
+        this.learnedWords = new Set(JSON.parse(localStorage.getItem('learnedWords') || '[]'));
+        this.quizResults = JSON.parse(localStorage.getItem('quizResults') || '[]');
+        this.currentPage = 'browse';
+        this.currentFilter = 'all';
+        this.searchQuery = '';
+        this.notionConfig = this.loadNotionConfig();
+
+        // 测验相关
+        this.quizData = {
+            questions: [],
+            currentIndex: 0,
+            score: 0,
+            selectedCount: 5
+        };
+
         this.init();
     }
 
-    // 初始化
+    // 初始化应用
     async init() {
         this.setupEventListeners();
-        await this.loadData();
-        this.convert();
-        // 每30秒更新一次数据
-        setInterval(() => this.loadData(), 30000);
+        await this.loadWords();
+        this.updateStats();
+        this.renderWords();
+    }
+
+    // 加载 Notion 配置
+    loadNotionConfig() {
+        return {
+            token: localStorage.getItem('notionToken') || '',
+            databaseId: localStorage.getItem('databaseId') || ''
+        };
+    }
+
+    // 保存 Notion 配置
+    saveNotionConfig(token, databaseId) {
+        localStorage.setItem('notionToken', token);
+        localStorage.setItem('databaseId', databaseId);
+        this.notionConfig = { token, databaseId };
+    }
+
+    // 从 Notion 加载字词数据
+    async loadWords() {
+        // 检查是否配置了 Notion
+        if (!this.notionConfig.token || !this.notionConfig.databaseId) {
+            // 使用示例数据
+            this.words = this.getSampleWords();
+            this.filteredWords = [...this.words];
+            this.updateLastUpdateTime();
+            return;
+        }
+
+        try {
+            const response = await fetch(`https://api.notion.com/v1/databases/${this.notionConfig.databaseId}/query`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.notionConfig.token}`,
+                    'Notion-Version': '2022-06-28',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch from Notion');
+            }
+
+            const data = await response.json();
+            this.words = this.parseNotionData(data.results);
+            this.filteredWords = [...this.words];
+            this.updateLastUpdateTime();
+
+        } catch (error) {
+            console.error('Error loading from Notion:', error);
+            // 如果加载失败，使用示例数据
+            this.words = this.getSampleWords();
+            this.filteredWords = [...this.words];
+            this.showMessage('无法从 Notion 加载数据，使用示例数据', 'error');
+        }
+    }
+
+    // 解析 Notion 数据
+    parseNotionData(results) {
+        return results.map((page, index) => {
+            const props = page.properties;
+            return {
+                id: page.id,
+                word: this.getNotionText(props['字词'] || props['Word'] || props['word']),
+                pinyin: this.getNotionText(props['拼音'] || props['Pinyin'] || props['pinyin']),
+                definition: this.getNotionText(props['释义'] || props['Definition'] || props['definition']),
+                example: this.getNotionText(props['例句'] || props['Example'] || props['example']),
+                difficulty: this.getNotionSelect(props['难度'] || props['Difficulty'] || props['difficulty'])
+            };
+        });
+    }
+
+    // 获取 Notion 文本字段
+    getNotionText(property) {
+        if (!property) return '';
+
+        if (property.title && property.title.length > 0) {
+            return property.title[0].plain_text || '';
+        }
+        if (property.rich_text && property.rich_text.length > 0) {
+            return property.rich_text[0].plain_text || '';
+        }
+        return '';
+    }
+
+    // 获取 Notion 选择字段
+    getNotionSelect(property) {
+        if (!property || !property.select) return '';
+        return property.select.name || '';
+    }
+
+    // 获取示例数据
+    getSampleWords() {
+        return [
+            { id: 1, word: '欢快', pinyin: 'huān kuài', definition: '形容高兴、愉快的样子', example: '孩子们在操场上欢快地玩耍。', difficulty: '简单' },
+            { id: 2, word: '宁静', pinyin: 'níng jìng', definition: '安静、平静', example: '夜晚的湖面显得格外宁静。', difficulty: '中等' },
+            { id: 3, word: '勤奋', pinyin: 'qín fèn', definition: '努力学习或工作，不懈怠', example: '小明是个勤奋的学生，总是认真完成作业。', difficulty: '简单' },
+            { id: 4, word: '观察', pinyin: 'guān chá', definition: '仔细看，注意事物的变化', example: '我们要学会观察身边的事物。', difficulty: '中等' },
+            { id: 5, word: '珍惜', pinyin: 'zhēn xī', definition: '重视、爱惜', example: '我们要珍惜时间，好好学习。', difficulty: '中等' },
+            { id: 6, word: '美丽', pinyin: 'měi lì', definition: '好看、漂亮', example: '春天的花园真美丽！', difficulty: '简单' },
+            { id: 7, word: '温暖', pinyin: 'wēn nuǎn', definition: '不冷不热，感觉舒适', example: '妈妈的怀抱总是那么温暖。', difficulty: '简单' },
+            { id: 8, word: '聪明', pinyin: 'cōng míng', definition: '智力发达，反应快', example: '她是一个聪明的女孩。', difficulty: '简单' },
+            { id: 9, word: '诚实', pinyin: 'chéng shí', definition: '说话做事真实不虚假', example: '做人要诚实，不能说谎。', difficulty: '中等' },
+            { id: 10, word: '勇敢', pinyin: 'yǒng gǎn', definition: '不怕危险和困难', example: '消防员叔叔非常勇敢。', difficulty: '简单' },
+            { id: 11, word: '愉快', pinyin: 'yú kuài', definition: '快乐、高兴', example: '我们度过了愉快的一天。', difficulty: '简单' },
+            { id: 12, word: '友好', pinyin: 'yǒu hǎo', definition: '亲近和睦', example: '同学之间要友好相处。', difficulty: '简单' }
+        ];
     }
 
     // 设置事件监听
     setupEventListeners() {
-        document.getElementById('convertBtn').addEventListener('click', () => this.convert());
-        document.getElementById('fromAmount').addEventListener('input', () => this.convert());
-        document.getElementById('fromCurrency').addEventListener('change', () => this.convert());
-        document.getElementById('toCurrency').addEventListener('change', () => this.convert());
-        document.getElementById('swapBtn').addEventListener('click', () => this.swap());
+        // 导航按钮
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.switchPage(btn.dataset.page));
+        });
 
-        // 按回车键自动转换
-        document.getElementById('fromAmount').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' || e.keyCode === 13) {
-                e.preventDefault();
-                this.convert();
-                // 可选：转换后移除输入框焦点，提供视觉反馈
-                e.target.blur();
+        // 搜索
+        document.getElementById('searchBtn').addEventListener('click', () => this.search());
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            if (e.target.value === '') {
+                this.searchQuery = '';
+                this.applyFilters();
             }
+        });
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.search();
+        });
+
+        // 过滤按钮
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.setFilter(btn.dataset.filter));
+        });
+
+        // 测验设置
+        document.querySelectorAll('.quiz-option-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.quiz-option-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                this.quizData.selectedCount = btn.dataset.count === 'all' ? this.words.length : parseInt(btn.dataset.count);
+            });
+        });
+
+        document.getElementById('startQuizBtn').addEventListener('click', () => this.startQuiz());
+
+        // 收藏管理
+        document.getElementById('clearFavoritesBtn').addEventListener('click', () => this.clearFavorites());
+
+        // 设置页面
+        document.getElementById('saveSettingsBtn').addEventListener('click', () => this.saveSettings());
+        document.getElementById('testConnectionBtn').addEventListener('click', () => this.testNotionConnection());
+        document.getElementById('resetProgressBtn').addEventListener('click', () => this.resetProgress());
+        document.getElementById('exportDataBtn').addEventListener('click', () => this.exportData());
+
+        // 从本地存储加载设置
+        if (this.notionConfig.token) {
+            document.getElementById('notionToken').value = this.notionConfig.token;
+        }
+        if (this.notionConfig.databaseId) {
+            document.getElementById('databaseId').value = this.notionConfig.databaseId;
+        }
+
+        // 模态框关闭
+        document.querySelector('.close-modal').addEventListener('click', () => this.closeModal());
+        document.getElementById('wordModal').addEventListener('click', (e) => {
+            if (e.target.id === 'wordModal') this.closeModal();
         });
     }
 
-    // 加载所有数据
-    async loadData() {
-        try {
-            await Promise.all([
-                this.loadCryptoPrices(),
-                this.loadFiatRates()
-            ]);
-            this.updateLastUpdateTime();
-            // 数据加载完成后，自动执行一次转换
-            this.convert();
-        } catch (error) {
-            console.error('加载数据失败:', error);
-            this.showError('数据加载失败，请刷新页面重试');
+    // 切换页面
+    switchPage(page) {
+        // 更新导航按钮
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.page === page) {
+                btn.classList.add('active');
+            }
+        });
+
+        // 更新页面内容
+        document.querySelectorAll('.page-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        document.getElementById(`${page}-page`).classList.add('active');
+
+        this.currentPage = page;
+
+        // 根据页面加载内容
+        if (page === 'review') {
+            this.renderFavorites();
         }
     }
 
-    // 从币安API加载加密货币价格
-    async loadCryptoPrices() {
-        try {
-            // 获取所有交易对价格（以USDT计价）
-            const response = await fetch('https://api.binance.com/api/v3/ticker/price');
-            const data = await response.json();
-
-            // 获取24小时价格变化
-            const statsResponse = await fetch('https://api.binance.com/api/v3/ticker/24hr');
-            const statsData = await statsResponse.json();
-
-            // 创建统计数据映射
-            const statsMap = {};
-            statsData.forEach(item => {
-                statsMap[item.symbol] = {
-                    priceChange: parseFloat(item.priceChange),
-                    priceChangePercent: parseFloat(item.priceChangePercent),
-                    volume: parseFloat(item.volume),
-                    quoteVolume: parseFloat(item.quoteVolume)
-                };
-            });
-
-            // 创建价格映射（所有USDT交易对）
-            const priceMap = {};
-            data.forEach(item => {
-                if (item.symbol.endsWith('USDT')) {
-                    const symbol = item.symbol.replace('USDT', '');
-                    priceMap[symbol] = parseFloat(item.price);
-                }
-            });
-
-            // 筛选USDT交易对
-            const usdtPairs = data.filter(item => item.symbol.endsWith('USDT'));
-
-            // 按交易量排序获取Top 50
-            const sortedPairs = usdtPairs
-                .filter(item => statsMap[item.symbol] && statsMap[item.symbol].quoteVolume > 0)
-                .sort((a, b) => (statsMap[b.symbol]?.quoteVolume || 0) - (statsMap[a.symbol]?.quoteVolume || 0))
-                .slice(0, 50);
-
-            // 保存价格数据
-            this.cryptoPrices = {};
-            this.top50Cryptos = [];
-
-            // 确保热门币种始终被加载
-            const mustHaveCoins = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE'];
-            mustHaveCoins.forEach(coin => {
-                if (priceMap[coin]) {
-                    this.cryptoPrices[coin] = priceMap[coin];
-                    console.log(`已加载热门币种: ${coin} = $${priceMap[coin]}`);
-                }
-            });
-
-            // 添加USDT本身
-            this.cryptoPrices['USDT'] = 1;
-
-            sortedPairs.forEach(item => {
-                const symbol = item.symbol.replace('USDT', '');
-                const price = parseFloat(item.price);
-                this.cryptoPrices[symbol] = price;
-                this.top50Cryptos.push({
-                    symbol: symbol,
-                    price: price,
-                    stats: statsMap[item.symbol]
-                });
-            });
-
-            console.log(`成功加载 ${Object.keys(this.cryptoPrices).length} 种加密货币价格`);
-
-            // 更新下拉菜单
-            this.updateCryptoDropdowns();
-
-            // 更新市场信息
-            this.updateMarketInfo();
-
-        } catch (error) {
-            console.error('加载加密货币价格失败:', error);
-            throw error;
-        }
+    // 搜索
+    search() {
+        this.searchQuery = document.getElementById('searchInput').value.toLowerCase();
+        this.applyFilters();
     }
 
-    // 加载法币汇率
-    async loadFiatRates() {
-        try {
-            // 使用免费的汇率API (以USD为基准)
-            const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
-            const data = await response.json();
-
-            this.fiatRates = data.rates;
-            this.fiatRates['USD'] = 1; // 确保USD存在
-
-        } catch (error) {
-            console.error('加载法币汇率失败:', error);
-            // 如果API失败，使用备用汇率
-            this.fiatRates = {
-                'USD': 1,
-                'EUR': 0.92,
-                'CNY': 7.24,
-                'JPY': 149.50,
-                'GBP': 0.79,
-                'KRW': 1320,
-                'AUD': 1.52,
-                'CAD': 1.36,
-                'CHF': 0.88,
-                'HKD': 7.82,
-                'SGD': 1.34,
-                'RUB': 92,
-                'INR': 83,
-                'BRL': 4.97,
-                'ZAR': 18.50,
-                'TRY': 28.50,
-                'MXN': 17.20,
-                'IDR': 15600,
-                'THB': 35.50,
-                'VND': 24500
-            };
-        }
+    // 设置过滤器
+    setFilter(filter) {
+        this.currentFilter = filter;
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.filter === filter) {
+                btn.classList.add('active');
+            }
+        });
+        this.applyFilters();
     }
 
-    // 更新加密货币下拉菜单
-    updateCryptoDropdowns() {
-        const cryptoGroup1 = document.getElementById('cryptoGroup');
-        const cryptoGroup2 = document.getElementById('cryptoGroup2');
+    // 应用过滤器
+    applyFilters() {
+        this.filteredWords = this.words.filter(word => {
+            // 搜索过滤
+            if (this.searchQuery) {
+                const matchesSearch =
+                    word.word.toLowerCase().includes(this.searchQuery) ||
+                    word.pinyin.toLowerCase().includes(this.searchQuery) ||
+                    word.definition.toLowerCase().includes(this.searchQuery);
+                if (!matchesSearch) return false;
+            }
 
-        // 清空现有选项
-        cryptoGroup1.innerHTML = '';
-        cryptoGroup2.innerHTML = '';
+            // 状态过滤
+            switch (this.currentFilter) {
+                case 'learned':
+                    return this.learnedWords.has(word.id);
+                case 'unlearned':
+                    return !this.learnedWords.has(word.id);
+                case 'favorites':
+                    return this.favorites.has(word.id);
+                default:
+                    return true;
+            }
+        });
 
-        // 添加Top 50加密货币（排除前5个热门的）
-        const hotCoins = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL'];
-        this.top50Cryptos
-            .filter(crypto => !hotCoins.includes(crypto.symbol))
-            .forEach(crypto => {
-                const option1 = document.createElement('option');
-                option1.value = crypto.symbol;
-                option1.textContent = `${crypto.symbol} - $${this.formatPrice(crypto.price)}`;
-                cryptoGroup1.appendChild(option1);
-
-                const option2 = document.createElement('option');
-                option2.value = crypto.symbol;
-                option2.textContent = `${crypto.symbol} - $${this.formatPrice(crypto.price)}`;
-                cryptoGroup2.appendChild(option2);
-            });
+        this.renderWords();
     }
 
-    // 更新市场信息
-    updateMarketInfo() {
-        const marketInfo = document.getElementById('marketInfo');
+    // 渲染字词列表
+    renderWords() {
+        const container = document.getElementById('wordList');
 
-        if (this.top50Cryptos.length === 0) {
-            marketInfo.innerHTML = '<p>暂无市场数据</p>';
+        if (this.filteredWords.length === 0) {
+            container.innerHTML = '<div class="empty-state">没有找到字词</div>';
             return;
         }
 
-        let html = '';
-        // 显示前5个加密货币
-        this.top50Cryptos.slice(0, 5).forEach(crypto => {
-            const changeClass = crypto.stats.priceChangePercent >= 0 ? 'positive' : 'negative';
-            const changeSymbol = crypto.stats.priceChangePercent >= 0 ? '+' : '';
-            html += `
-                <div class="market-item">
-                    <div>
-                        <div class="label">${crypto.symbol}/USDT</div>
-                        <div class="value">$${this.formatPrice(crypto.price)}</div>
-                    </div>
-                    <div class="${changeClass}" style="text-align: right;">
-                        <div style="font-size: 0.875rem;">${changeSymbol}${crypto.stats.priceChangePercent.toFixed(2)}%</div>
-                        <div style="font-size: 0.75rem; opacity: 0.7;">24h</div>
+        container.innerHTML = this.filteredWords.map(word => `
+            <div class="word-card ${this.learnedWords.has(word.id) ? 'learned' : ''} ${this.favorites.has(word.id) ? 'favorite' : ''}"
+                 data-id="${word.id}">
+                <div class="word-card-header">
+                    <div class="word-title">${word.word}</div>
+                    <div class="word-badges">
+                        ${this.learnedWords.has(word.id) ? '<span class="badge badge-learned">已学</span>' : ''}
+                        ${this.favorites.has(word.id) ? '<span class="badge badge-favorite">★</span>' : ''}
                     </div>
                 </div>
-            `;
+                <div class="word-pinyin">${word.pinyin}</div>
+                <div class="word-definition">${word.definition}</div>
+                <div class="word-actions">
+                    <button class="btn-small btn-favorite" onclick="app.toggleFavorite(${word.id})">
+                        ${this.favorites.has(word.id) ? '取消收藏' : '收藏'}
+                    </button>
+                    <button class="btn-small btn-learned" onclick="app.toggleLearned(${word.id})">
+                        ${this.learnedWords.has(word.id) ? '未学习' : '已学习'}
+                    </button>
+                    <button class="btn-small" onclick="app.showWordDetail(${word.id})" style="background: #667eea; color: white;">
+                        详情
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // 显示字词详情
+    showWordDetail(wordId) {
+        const word = this.words.find(w => w.id === wordId);
+        if (!word) return;
+
+        const modal = document.getElementById('wordModal');
+        const modalBody = document.getElementById('modalBody');
+
+        modalBody.innerHTML = `
+            <div class="modal-word-title">${word.word}</div>
+            <div class="modal-word-pinyin">${word.pinyin}</div>
+            <div class="modal-word-detail">
+                <strong>释义：</strong>
+                <p>${word.definition}</p>
+            </div>
+            <div class="modal-word-detail">
+                <strong>例句：</strong>
+                <p>${word.example}</p>
+            </div>
+            ${word.difficulty ? `
+                <div class="modal-word-detail">
+                    <strong>难度：</strong>
+                    <p>${word.difficulty}</p>
+                </div>
+            ` : ''}
+            <div class="modal-actions">
+                <button onclick="app.toggleFavorite(${word.id}); app.closeModal(); app.showWordDetail(${word.id});"
+                        style="background: #FFE66D; color: #2D3436;">
+                    ${this.favorites.has(word.id) ? '取消收藏 ★' : '收藏 ☆'}
+                </button>
+                <button onclick="app.toggleLearned(${word.id}); app.closeModal(); app.showWordDetail(${word.id});"
+                        style="background: #95E1D3; color: white;">
+                    ${this.learnedWords.has(word.id) ? '标记未学习' : '标记已学习'}
+                </button>
+            </div>
+        `;
+
+        modal.classList.add('active');
+    }
+
+    // 关闭模态框
+    closeModal() {
+        document.getElementById('wordModal').classList.remove('active');
+    }
+
+    // 切换收藏
+    toggleFavorite(wordId) {
+        if (this.favorites.has(wordId)) {
+            this.favorites.delete(wordId);
+        } else {
+            this.favorites.add(wordId);
+        }
+        localStorage.setItem('favorites', JSON.stringify([...this.favorites]));
+        this.renderWords();
+        this.renderFavorites();
+        this.updateStats();
+    }
+
+    // 切换学习状态
+    toggleLearned(wordId) {
+        if (this.learnedWords.has(wordId)) {
+            this.learnedWords.delete(wordId);
+        } else {
+            this.learnedWords.add(wordId);
+        }
+        localStorage.setItem('learnedWords', JSON.stringify([...this.learnedWords]));
+        this.renderWords();
+        this.updateStats();
+    }
+
+    // 渲染收藏列表
+    renderFavorites() {
+        const container = document.getElementById('favoritesList');
+        const favoriteWords = this.words.filter(w => this.favorites.has(w.id));
+
+        if (favoriteWords.length === 0) {
+            container.innerHTML = '<div class="empty-state">还没有收藏的字词哦！</div>';
+            return;
+        }
+
+        container.innerHTML = favoriteWords.map(word => `
+            <div class="word-card favorite ${this.learnedWords.has(word.id) ? 'learned' : ''}" data-id="${word.id}">
+                <div class="word-card-header">
+                    <div class="word-title">${word.word}</div>
+                    <div class="word-badges">
+                        ${this.learnedWords.has(word.id) ? '<span class="badge badge-learned">已学</span>' : ''}
+                        <span class="badge badge-favorite">★</span>
+                    </div>
+                </div>
+                <div class="word-pinyin">${word.pinyin}</div>
+                <div class="word-definition">${word.definition}</div>
+                <div class="word-actions">
+                    <button class="btn-small btn-favorite" onclick="app.toggleFavorite(${word.id})">取消收藏</button>
+                    <button class="btn-small btn-learned" onclick="app.toggleLearned(${word.id})">
+                        ${this.learnedWords.has(word.id) ? '未学习' : '已学习'}
+                    </button>
+                    <button class="btn-small" onclick="app.showWordDetail(${word.id})" style="background: #667eea; color: white;">
+                        详情
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // 清空收藏
+    clearFavorites() {
+        if (confirm('确定要清空所有收藏吗？')) {
+            this.favorites.clear();
+            localStorage.setItem('favorites', JSON.stringify([]));
+            this.renderFavorites();
+            this.renderWords();
+            this.updateStats();
+        }
+    }
+
+    // 开始测验
+    startQuiz() {
+        if (this.words.length === 0) {
+            alert('没有可用的字词进行测验！');
+            return;
+        }
+
+        const count = Math.min(this.quizData.selectedCount, this.words.length);
+
+        // 随机选择字词
+        const shuffled = [...this.words].sort(() => Math.random() - 0.5);
+        const selectedWords = shuffled.slice(0, count);
+
+        // 生成问题
+        this.quizData.questions = selectedWords.map(word => {
+            // 随机决定问题类型
+            const questionType = Math.random() > 0.5 ? 'definition' : 'pinyin';
+
+            // 生成错误选项
+            const wrongAnswers = this.words
+                .filter(w => w.id !== word.id)
+                .sort(() => Math.random() - 0.5)
+                .slice(0, 3)
+                .map(w => questionType === 'definition' ? w.definition : w.pinyin);
+
+            const correctAnswer = questionType === 'definition' ? word.definition : word.pinyin;
+            const answers = [correctAnswer, ...wrongAnswers].sort(() => Math.random() - 0.5);
+
+            return {
+                word: word.word,
+                type: questionType,
+                question: questionType === 'definition'
+                    ? `"${word.word}" 的意思是？`
+                    : `"${word.word}" 的拼音是？`,
+                answers: answers,
+                correctAnswer: correctAnswer,
+                userAnswer: null
+            };
         });
 
-        marketInfo.innerHTML = html;
+        this.quizData.currentIndex = 0;
+        this.quizData.score = 0;
+
+        this.renderQuizQuestion();
     }
 
-    // 格式化价格显示
-    formatPrice(price) {
-        if (price >= 1000) {
-            return price.toLocaleString('en-US', { maximumFractionDigits: 2 });
-        } else if (price >= 1) {
-            return price.toFixed(4);
-        } else if (price >= 0.0001) {
-            return price.toFixed(6);
-        } else {
-            return price.toFixed(8);
-        }
-    }
+    // 渲染测验问题
+    renderQuizQuestion() {
+        const container = document.getElementById('quizContent');
+        const question = this.quizData.questions[this.quizData.currentIndex];
+        const total = this.quizData.questions.length;
+        const current = this.quizData.currentIndex + 1;
 
-    // 判断是否为加密货币
-    isCrypto(currency) {
-        return this.cryptoPrices.hasOwnProperty(currency);
-    }
+        document.getElementById('currentQuestion').textContent = current;
+        document.getElementById('totalQuestions').textContent = total;
+        document.getElementById('quizScore').textContent = this.quizData.score;
+        document.getElementById('progressFill').style.width = `${(current / total) * 100}%`;
 
-    // 判断是否为法币
-    isFiat(currency) {
-        return this.fiatRates.hasOwnProperty(currency);
-    }
-
-    // 获取货币的USD价格
-    getPriceInUSD(currency, amount = 1) {
-        if (this.isCrypto(currency)) {
-            // 加密货币，直接返回USDT价格
-            const price = this.cryptoPrices[currency];
-            if (!price || isNaN(price)) {
-                console.error(`${currency} (加密) 价格无效或未加载: ${price}`);
-                return 0;
-            }
-            const usdTotal = price * amount;
-            console.log(`${currency} (加密) 价格: $${price}, 数量: ${amount}, USD总额: $${usdTotal}`);
-            return usdTotal;
-        } else if (this.isFiat(currency)) {
-            // 法币，转换为USD
-            const rate = this.fiatRates[currency];
-            if (!rate || isNaN(rate)) {
-                console.error(`${currency} (法币) 汇率无效或未加载: ${rate}`);
-                return 0;
-            }
-            const usdAmount = amount / rate;
-            console.log(`${currency} (法币) 汇率: ${rate}, 数量: ${amount}, USD总额: $${usdAmount}`);
-            return usdAmount;
-        }
-        console.log(`未知货币: ${currency}`);
-        return 0;
-    }
-
-    // 从USD价格转换为目标货币
-    convertFromUSD(usdAmount, targetCurrency) {
-        if (this.isCrypto(targetCurrency)) {
-            // 转换为加密货币
-            const price = this.cryptoPrices[targetCurrency];
-            if (!price || isNaN(price)) {
-                console.error(`${targetCurrency} (加密) 价格无效或未加载: ${price}`);
-                return 0;
-            }
-            const result = usdAmount / price;
-            console.log(`USD $${usdAmount} -> ${targetCurrency} (加密): ${result} (价格: $${price})`);
-            return result;
-        } else if (this.isFiat(targetCurrency)) {
-            // 转换为法币
-            const rate = this.fiatRates[targetCurrency];
-            if (!rate || isNaN(rate)) {
-                console.error(`${targetCurrency} (法币) 汇率无效或未加载: ${rate}`);
-                return 0;
-            }
-            const result = usdAmount * rate;
-            console.log(`USD $${usdAmount} -> ${targetCurrency} (法币): ${result} (汇率: ${rate})`);
-            return result;
-        }
-        console.log(`未知目标货币: ${targetCurrency}`);
-        return 0;
-    }
-
-    // 执行转换
-    convert() {
-        const fromAmountInput = document.getElementById('fromAmount').value;
-        const fromAmount = parseFloat(fromAmountInput);
-        const fromCurrency = document.getElementById('fromCurrency').value;
-        const toCurrency = document.getElementById('toCurrency').value;
-
-        console.log(`转换请求: ${fromAmount} ${fromCurrency} -> ${toCurrency}`);
-
-        // 检查数据是否已加载
-        if (Object.keys(this.cryptoPrices).length === 0 || Object.keys(this.fiatRates).length === 0) {
-            console.log('数据还在加载中...');
-            return;
-        }
-
-        // 如果输入为空或0，显示0并计算汇率
-        if (!fromAmountInput || isNaN(fromAmount) || fromAmount === 0) {
-            document.getElementById('toAmount').value = '0';
-            // 仍然计算并显示1单位的汇率
-            const rate1 = this.calculateRate(fromCurrency, toCurrency);
-            this.updateRateInfo(fromCurrency, toCurrency, rate1);
-            return;
-        }
-
-        try {
-            // 第一步：转换为USD
-            const usdAmount = this.getPriceInUSD(fromCurrency, fromAmount);
-
-            if (usdAmount === 0 || isNaN(usdAmount)) {
-                console.error('无法获取源货币价格:', fromCurrency);
-                this.showError(`无法获取 ${fromCurrency} 的价格，请稍后重试`);
-                return;
-            }
-
-            // 第二步：从USD转换为目标货币
-            const result = this.convertFromUSD(usdAmount, toCurrency);
-
-            if (result === 0 || isNaN(result)) {
-                console.error('无法转换到目标货币:', toCurrency);
-                this.showError(`无法转换到 ${toCurrency}，请稍后重试`);
-                return;
-            }
-
-            // 显示结果
-            document.getElementById('toAmount').value = this.formatPrice(result);
-
-            // 更新汇率信息
-            const rate = result / fromAmount;
-            this.updateRateInfo(fromCurrency, toCurrency, rate);
-
-        } catch (error) {
-            console.error('转换失败:', error);
-            this.showError('转换失败，请检查货币是否支持');
-        }
-    }
-
-    // 计算1单位的汇率
-    calculateRate(fromCurrency, toCurrency) {
-        const usd = this.getPriceInUSD(fromCurrency, 1);
-        if (usd === 0) return 0;
-        return this.convertFromUSD(usd, toCurrency);
-    }
-
-    // 更新汇率信息显示
-    updateRateInfo(from, to, rate) {
-        const rateInfo = document.getElementById('rateInfo');
-        rateInfo.innerHTML = `
-            <div class="rate-display">
-                1 ${from} = <span class="rate-value">${this.formatPrice(rate)}</span> ${to}
+        container.innerHTML = `
+            <div class="quiz-question">
+                <div class="question-text">${question.question}</div>
+                <div class="quiz-answers">
+                    ${question.answers.map((answer, index) => `
+                        <button class="answer-btn" onclick="app.selectAnswer('${answer}', ${index})">
+                            ${answer}
+                        </button>
+                    `).join('')}
+                </div>
+                <div class="quiz-navigation">
+                    <button class="btn-quiz-nav" onclick="app.previousQuestion()" ${current === 1 ? 'disabled' : ''}>
+                        上一题
+                    </button>
+                    <button class="btn-quiz-nav" onclick="app.nextQuestion()" id="nextBtn" disabled>
+                        ${current === total ? '完成' : '下一题'}
+                    </button>
+                </div>
             </div>
         `;
     }
 
-    // 交换货币
-    swap() {
-        const fromCurrency = document.getElementById('fromCurrency').value;
-        const toCurrency = document.getElementById('toCurrency').value;
-        const fromAmount = document.getElementById('fromAmount').value;
-        const toAmount = document.getElementById('toAmount').value;
+    // 选择答案
+    selectAnswer(answer, index) {
+        const question = this.quizData.questions[this.quizData.currentIndex];
+        question.userAnswer = answer;
 
-        document.getElementById('fromCurrency').value = toCurrency;
-        document.getElementById('toCurrency').value = fromCurrency;
-        document.getElementById('fromAmount').value = toAmount || fromAmount;
+        // 更新UI
+        document.querySelectorAll('.answer-btn').forEach((btn, i) => {
+            btn.classList.remove('selected', 'correct', 'incorrect');
+            if (i === index) {
+                btn.classList.add('selected');
+            }
+        });
 
-        this.convert();
+        // 启用下一题按钮
+        document.getElementById('nextBtn').disabled = false;
+    }
+
+    // 下一题
+    nextQuestion() {
+        const question = this.quizData.questions[this.quizData.currentIndex];
+
+        // 检查答案
+        if (question.userAnswer === question.correctAnswer) {
+            this.quizData.score++;
+        }
+
+        // 显示正确/错误
+        document.querySelectorAll('.answer-btn').forEach(btn => {
+            btn.disabled = true;
+            if (btn.textContent.trim() === question.correctAnswer) {
+                btn.classList.add('correct');
+            } else if (btn.classList.contains('selected') && btn.textContent.trim() !== question.correctAnswer) {
+                btn.classList.add('incorrect');
+            }
+        });
+
+        setTimeout(() => {
+            if (this.quizData.currentIndex < this.quizData.questions.length - 1) {
+                this.quizData.currentIndex++;
+                this.renderQuizQuestion();
+            } else {
+                this.showQuizResult();
+            }
+        }, 1500);
+    }
+
+    // 上一题
+    previousQuestion() {
+        if (this.quizData.currentIndex > 0) {
+            this.quizData.currentIndex--;
+            this.renderQuizQuestion();
+        }
+    }
+
+    // 显示测验结果
+    showQuizResult() {
+        const container = document.getElementById('quizContent');
+        const total = this.quizData.questions.length;
+        const score = this.quizData.score;
+        const percentage = Math.round((score / total) * 100);
+
+        // 保存结果
+        this.quizResults.push({
+            date: new Date().toISOString(),
+            score: score,
+            total: total,
+            percentage: percentage
+        });
+        localStorage.setItem('quizResults', JSON.stringify(this.quizResults));
+
+        // 更新统计
+        this.updateStats();
+
+        let emoji = '🎉';
+        let message = '太棒了！';
+        if (percentage < 60) {
+            emoji = '📚';
+            message = '继续加油！';
+        } else if (percentage < 80) {
+            emoji = '👍';
+            message = '做得不错！';
+        }
+
+        container.innerHTML = `
+            <div class="quiz-result">
+                <div class="result-emoji">${emoji}</div>
+                <div class="result-score">${score} / ${total}</div>
+                <div class="result-message">${message} 正确率 ${percentage}%</div>
+                <button class="start-quiz-btn" onclick="app.switchPage('browse')">返回学习</button>
+                <button class="start-quiz-btn" onclick="location.reload()" style="background: #4ECDC4; margin-top: 10px;">
+                    再来一次
+                </button>
+            </div>
+        `;
+
+        // 重置进度显示
+        document.getElementById('currentQuestion').textContent = total;
+        document.getElementById('quizScore').textContent = score;
+        document.getElementById('progressFill').style.width = '100%';
+    }
+
+    // 保存设置
+    async saveSettings() {
+        const token = document.getElementById('notionToken').value.trim();
+        const databaseId = document.getElementById('databaseId').value.trim();
+
+        if (!token || !databaseId) {
+            this.showMessage('请填写完整的配置信息', 'error');
+            return;
+        }
+
+        this.saveNotionConfig(token, databaseId);
+        this.showMessage('配置已保存！', 'success');
+
+        // 重新加载数据
+        await this.loadWords();
+        this.renderWords();
+        this.updateStats();
+    }
+
+    // 测试 Notion 连接
+    async testNotionConnection() {
+        const token = document.getElementById('notionToken').value.trim();
+        const databaseId = document.getElementById('databaseId').value.trim();
+
+        if (!token || !databaseId) {
+            this.showMessage('请先填写配置信息', 'error');
+            return;
+        }
+
+        this.showMessage('正在测试连接...', 'success');
+
+        try {
+            const response = await fetch(`https://api.notion.com/v1/databases/${databaseId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Notion-Version': '2022-06-28'
+                }
+            });
+
+            if (response.ok) {
+                this.showMessage('连接成功！✅', 'success');
+            } else {
+                this.showMessage('连接失败，请检查配置 ❌', 'error');
+            }
+        } catch (error) {
+            this.showMessage('连接失败：' + error.message, 'error');
+        }
+    }
+
+    // 重置进度
+    resetProgress() {
+        if (confirm('确定要重置所有学习进度吗？这将清除已学习记录、收藏和测验结果。')) {
+            this.learnedWords.clear();
+            this.favorites.clear();
+            this.quizResults = [];
+            localStorage.removeItem('learnedWords');
+            localStorage.removeItem('favorites');
+            localStorage.removeItem('quizResults');
+            this.updateStats();
+            this.renderWords();
+            this.renderFavorites();
+            this.showMessage('进度已重置', 'success');
+        }
+    }
+
+    // 导出数据
+    exportData() {
+        const data = {
+            learnedWords: [...this.learnedWords],
+            favorites: [...this.favorites],
+            quizResults: this.quizResults,
+            exportDate: new Date().toISOString()
+        };
+
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `vocabulary-data-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        this.showMessage('数据已导出！', 'success');
+    }
+
+    // 更新统计信息
+    updateStats() {
+        document.getElementById('totalWords').textContent = this.words.length;
+        document.getElementById('learnedWords').textContent = this.learnedWords.size;
+
+        // 计算正确率
+        if (this.quizResults.length > 0) {
+            const totalScore = this.quizResults.reduce((sum, r) => sum + r.score, 0);
+            const totalQuestions = this.quizResults.reduce((sum, r) => sum + r.total, 0);
+            const accuracy = totalQuestions > 0 ? Math.round((totalScore / totalQuestions) * 100) : 0;
+            document.getElementById('accuracy').textContent = accuracy + '%';
+        } else {
+            document.getElementById('accuracy').textContent = '0%';
+        }
     }
 
     // 更新最后更新时间
     updateLastUpdateTime() {
         const now = new Date();
-        const timeString = now.toLocaleTimeString('zh-CN');
+        const timeString = now.toLocaleString('zh-CN');
         document.getElementById('lastUpdate').textContent = timeString;
     }
 
-    // 显示错误信息
-    showError(message) {
-        const rateInfo = document.getElementById('rateInfo');
-        rateInfo.innerHTML = `<div class="error-message">${message}</div>`;
+    // 显示消息
+    showMessage(message, type) {
+        const statusEl = document.getElementById('connectionStatus');
+        statusEl.textContent = message;
+        statusEl.className = `status-message ${type}`;
+
+        setTimeout(() => {
+            statusEl.textContent = '';
+            statusEl.className = 'status-message';
+        }, 3000);
     }
 }
 
-// 页面加载完成后初始化
+// 初始化应用
+let app;
 document.addEventListener('DOMContentLoaded', () => {
-    new CryptoConverter();
+    app = new VocabularyApp();
 });
