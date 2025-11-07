@@ -3,126 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>加密货币汇率计算器</title>
+    <title>三年级字词学习 📚</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>💱 加密货币汇率计算器</h1>
-            <p class="subtitle">实时汇率 · 币安数据源</p>
+            <h1>📚 三年级字词学习</h1>
+            <p class="subtitle">快乐学习，天天向上！</p>
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="stat-label">总词汇</span>
+                    <span class="stat-value" id="totalWords">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">已学习</span>
+                    <span class="stat-value" id="learnedWords">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">正确率</span>
+                    <span class="stat-value" id="accuracy">0%</span>
+                </div>
+            </div>
         </header>
 
-        <div class="calculator-card">
-            <div class="currency-section">
-                <label for="fromAmount">转换金额</label>
-                <div class="input-group">
-                    <input type="number" id="fromAmount" placeholder="0.00" value="1" min="0" step="any">
-                    <select id="fromCurrency">
-                        <optgroup label="热门加密货币">
-                            <option value="BTC" selected>BTC - Bitcoin</option>
-                            <option value="ETH">ETH - Ethereum</option>
-                            <option value="USDT">USDT - Tether</option>
-                            <option value="BNB">BNB - Binance Coin</option>
-                            <option value="SOL">SOL - Solana</option>
-                        </optgroup>
-                        <optgroup label="其他加密货币" id="cryptoGroup">
-                        </optgroup>
-                        <optgroup label="法定货币" id="fiatGroup">
-                            <option value="USD">USD - 美元</option>
-                            <option value="EUR">EUR - 欧元</option>
-                            <option value="CNY">CNY - 人民币</option>
-                            <option value="JPY">JPY - 日元</option>
-                            <option value="GBP">GBP - 英镑</option>
-                            <option value="KRW">KRW - 韩元</option>
-                            <option value="AUD">AUD - 澳元</option>
-                            <option value="CAD">CAD - 加元</option>
-                            <option value="CHF">CHF - 瑞士法郎</option>
-                            <option value="HKD">HKD - 港币</option>
-                            <option value="SGD">SGD - 新加坡元</option>
-                            <option value="RUB">RUB - 卢布</option>
-                            <option value="INR">INR - 印度卢比</option>
-                            <option value="BRL">BRL - 巴西雷亚尔</option>
-                            <option value="ZAR">ZAR - 南非兰特</option>
-                            <option value="TRY">TRY - 土耳其里拉</option>
-                            <option value="MXN">MXN - 墨西哥比索</option>
-                            <option value="IDR">IDR - 印尼盾</option>
-                            <option value="THB">THB - 泰铢</option>
-                            <option value="VND">VND - 越南盾</option>
-                        </optgroup>
-                    </select>
-                </div>
-            </div>
-
-            <div class="swap-button" id="swapBtn">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <polyline points="19 12 12 19 5 12"></polyline>
-                </svg>
-            </div>
-
-            <div class="currency-section">
-                <label for="toAmount">兑换结果</label>
-                <div class="input-group">
-                    <input type="number" id="toAmount" placeholder="0.00" readonly>
-                    <select id="toCurrency">
-                        <optgroup label="法定货币" id="fiatGroup2">
-                            <option value="USD" selected>USD - 美元</option>
-                            <option value="EUR">EUR - 欧元</option>
-                            <option value="CNY">CNY - 人民币</option>
-                            <option value="JPY">JPY - 日元</option>
-                            <option value="GBP">GBP - 英镑</option>
-                            <option value="KRW">KRW - 韩元</option>
-                            <option value="AUD">AUD - 澳元</option>
-                            <option value="CAD">CAD - 加元</option>
-                            <option value="CHF">CHF - 瑞士法郎</option>
-                            <option value="HKD">HKD - 港币</option>
-                            <option value="SGD">SGD - 新加坡元</option>
-                            <option value="RUB">RUB - 卢布</option>
-                            <option value="INR">INR - 印度卢比</option>
-                            <option value="BRL">BRL - 巴西雷亚尔</option>
-                            <option value="ZAR">ZAR - 南非兰特</option>
-                            <option value="TRY">TRY - 土耳其里拉</option>
-                            <option value="MXN">MXN - 墨西哥比索</option>
-                            <option value="IDR">IDR - 印尼盾</option>
-                            <option value="THB">THB - 泰铢</option>
-                            <option value="VND">VND - 越南盾</option>
-                        </optgroup>
-                        <optgroup label="热门加密货币">
-                            <option value="BTC">BTC - Bitcoin</option>
-                            <option value="ETH">ETH - Ethereum</option>
-                            <option value="USDT">USDT - Tether</option>
-                            <option value="BNB">BNB - Binance Coin</option>
-                            <option value="SOL">SOL - Solana</option>
-                        </optgroup>
-                        <optgroup label="其他加密货币" id="cryptoGroup2">
-                        </optgroup>
-                    </select>
-                </div>
-            </div>
-
-            <div class="rate-info" id="rateInfo">
-                <div class="loading">加载汇率中...</div>
-            </div>
-
-            <button class="convert-btn" id="convertBtn">
-                立即转换
+        <!-- 导航菜单 -->
+        <nav class="nav-menu">
+            <button class="nav-btn active" data-page="browse">
+                <span class="icon">📖</span>
+                <span>浏览字词</span>
             </button>
+            <button class="nav-btn" data-page="quiz">
+                <span class="icon">✏️</span>
+                <span>练习测试</span>
+            </button>
+            <button class="nav-btn" data-page="review">
+                <span class="icon">⭐</span>
+                <span>复习收藏</span>
+            </button>
+            <button class="nav-btn" data-page="settings">
+                <span class="icon">⚙️</span>
+                <span>设置</span>
+            </button>
+        </nav>
+
+        <!-- 浏览字词页面 -->
+        <div class="page-content active" id="browse-page">
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="搜索字词、拼音或释义..." />
+                <button id="searchBtn">🔍 搜索</button>
+            </div>
+
+            <div class="filter-bar">
+                <button class="filter-btn active" data-filter="all">全部</button>
+                <button class="filter-btn" data-filter="learned">已学习</button>
+                <button class="filter-btn" data-filter="unlearned">未学习</button>
+                <button class="filter-btn" data-filter="favorites">收藏</button>
+            </div>
+
+            <div id="wordList" class="word-list">
+                <div class="loading">正在从 Notion 加载字词...</div>
+            </div>
         </div>
 
-        <div class="info-section">
-            <div class="info-card">
-                <h3>📊 市场信息</h3>
-                <div id="marketInfo" class="market-info">
-                    <p>正在加载市场数据...</p>
+        <!-- 练习测试页面 -->
+        <div class="page-content" id="quiz-page">
+            <div class="quiz-container">
+                <div class="quiz-header">
+                    <div class="quiz-progress">
+                        <span>题目 <span id="currentQuestion">0</span> / <span id="totalQuestions">0</span></span>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                    </div>
+                    <div class="quiz-score">
+                        得分: <span id="quizScore">0</span>
+                    </div>
                 </div>
+
+                <div class="quiz-content" id="quizContent">
+                    <div class="quiz-setup">
+                        <h2>开始练习</h2>
+                        <p>选择练习题目数量：</p>
+                        <div class="quiz-options">
+                            <button class="quiz-option-btn" data-count="5">5 题</button>
+                            <button class="quiz-option-btn" data-count="10">10 题</button>
+                            <button class="quiz-option-btn" data-count="20">20 题</button>
+                            <button class="quiz-option-btn" data-count="all">全部</button>
+                        </div>
+                        <button class="start-quiz-btn" id="startQuizBtn">开始练习</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 复习收藏页面 -->
+        <div class="page-content" id="review-page">
+            <div class="review-header">
+                <h2>⭐ 我的收藏</h2>
+                <button class="btn-clear-favorites" id="clearFavoritesBtn">清空收藏</button>
+            </div>
+            <div id="favoritesList" class="word-list">
+                <div class="empty-state">还没有收藏的字词哦！</div>
+            </div>
+        </div>
+
+        <!-- 设置页面 -->
+        <div class="page-content" id="settings-page">
+            <div class="settings-container">
+                <h2>⚙️ Notion 数据库配置</h2>
+
+                <div class="settings-section">
+                    <label for="notionToken">Notion Integration Token</label>
+                    <input type="password" id="notionToken" placeholder="输入你的 Notion Integration Token" />
+                    <small>如何获取：<a href="https://www.notion.so/my-integrations" target="_blank">创建 Notion Integration</a></small>
+                </div>
+
+                <div class="settings-section">
+                    <label for="databaseId">Database ID</label>
+                    <input type="text" id="databaseId" placeholder="输入你的 Notion Database ID" />
+                    <small>从 Notion 数据库 URL 中获取</small>
+                </div>
+
+                <div class="settings-section">
+                    <h3>数据库字段映射</h3>
+                    <p class="field-info">请确保你的 Notion 数据库包含以下字段：</p>
+                    <ul class="field-list">
+                        <li><strong>字词</strong> (Word) - 标题字段</li>
+                        <li><strong>拼音</strong> (Pinyin) - 文本字段</li>
+                        <li><strong>释义</strong> (Definition) - 文本字段</li>
+                        <li><strong>例句</strong> (Example) - 文本字段</li>
+                        <li><strong>难度</strong> (Difficulty) - 选择字段（可选）</li>
+                    </ul>
+                </div>
+
+                <button class="btn-save-settings" id="saveSettingsBtn">保存配置</button>
+                <button class="btn-test-connection" id="testConnectionBtn">测试连接</button>
+
+                <div class="settings-section">
+                    <h3>数据管理</h3>
+                    <button class="btn-reset-progress" id="resetProgressBtn">重置学习进度</button>
+                    <button class="btn-export-data" id="exportDataBtn">导出学习数据</button>
+                </div>
+
+                <div id="connectionStatus" class="status-message"></div>
             </div>
         </div>
 
         <footer>
-            <p>数据来源：币安 (Binance) API | 实时更新</p>
-            <p class="last-update">最后更新: <span id="lastUpdate">-</span></p>
+            <p>💡 提示：每天坚持学习，进步看得见！</p>
+            <p class="last-update">数据更新时间: <span id="lastUpdate">-</span></p>
         </footer>
+    </div>
+
+    <!-- 字词详情弹窗 -->
+    <div class="modal" id="wordModal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <div class="modal-body" id="modalBody">
+                <!-- 动态内容 -->
+            </div>
+        </div>
     </div>
 
     <script src="app.js"></script>
